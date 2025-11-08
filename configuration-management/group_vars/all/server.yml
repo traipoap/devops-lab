@@ -1,0 +1,4 @@
+ansible_user: traipoap
+ansible_password: "{{ vault_ansible_password }}"
+
+ansible_become_password: "32110"

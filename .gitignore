@@ -1,0 +1,120 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Icon
+Icon\r
+
+# Files that might appear in the root
+ehthumbs.db
+Thumbs.db
+
+# Shell history
+.ash_history
+.bash_history
+.zsh_history
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.env.local
+pip-log.txt
+
+# Ansible
+# Ignore Vault or local secrets files
+*.vault
+**/vault.yml
+**/vault.yaml
+# Editor backups inside Ansible roles/playbooks
+*~
+*.retry
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+crash.log
+override.tf
+override.tf.json
+terraform.tfvars
+terraform.tfvars.json
+*.tfvars
+
+# SSH keys and secrets
+id_*.pem
+*.pem
+*.key
+secrets.yml
+*.secret
+*.cred
+
+# Docker
+docker-compose.override.yml
+**/docker-compose.override.yml
+**/docker-compose.*.local.yml
+docker-compose.*.local.yml
+docker-compose.*.override.yml
+**/.docker
+docker-compose.*.yml
+docker-compose.*.yaml
+**/docker/*
+**/containers/*
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+*.db
+logs/
+*.log.*
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.code-workspace
+
+# JetBrains
+*.iml
+*.iws
+out/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# macOS Finder tags
+*.icloud
+
+# Misc
+*.swp
+*~
+.project
+.cache
+coverage/
+
+# System generated
+*.bak
+*.tmp
+
+# Allowlist: ensure these inventory and playbook files are kept if present
+!inventory/
+!*/inventory
+!*/playbooks
+!*.yml
+
+# Ensure the repository README and important docs are not ignored
+!README.md
+
+# End of file

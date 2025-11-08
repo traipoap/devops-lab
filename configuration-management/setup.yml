@@ -1,0 +1,23 @@
+---
+- hosts: "worker"
+  roles:
+    - role: base
+      tags: ["base"]
+    
+    - role: k3s
+      tags: ["k3s"]
+
+    - role: nginx
+      tags: ["nginx"]
+
+    - role: app
+      tags: ["app"]
+
+    - role: ssh
+      tags: ["ssh"]
+
+    - role: update
+      tage: ["update"]
+      
+    - role: restart
+      tage: ["restart"]

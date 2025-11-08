@@ -1,0 +1,16 @@
+---
+- name: Check Interface Status and Device Health
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Get interface status
+      ios_command:
+        commands:
+          - show ip interface brief
+
+    - name: Get CPU/Memory usage
+      ios_command:
+        commands:
+          - show processes cpu
+          - show memory statistics

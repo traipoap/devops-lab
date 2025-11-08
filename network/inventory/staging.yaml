@@ -1,0 +1,21 @@
+all:
+  children:
+    cisco_routers:
+      hosts:
+        router01:
+          ansible_host: 192.168.1.10
+          ansible_user: admin
+          ansible_password: admin123
+      vars:
+        ansible_network_os: ios
+        ansible_connection: network_cli
+
+    switches:
+      hosts:
+        switchmgmt01:
+          ansible_host: 192.168.1.11
+          ansible_user: admin
+          ansible_password: admin123
+      vars:
+        ansible_network_os: ios
+        ansible_connection: network_cli

@@ -1,0 +1,4 @@
+- name: aptitude update
+  apt:
+    name: "*"
+    state: latest

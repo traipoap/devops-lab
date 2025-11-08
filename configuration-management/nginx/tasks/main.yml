@@ -1,0 +1,8 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for nginx
+- name: Configure NGINX on load-balance
+  become: true
+  apt:
+    name: nginx
+    state: latest

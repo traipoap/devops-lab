@@ -1,0 +1,23 @@
+- name: aptitude update
+  become: true
+  apt:
+    name: "*"
+    state: latest
+
+- name: base install fail2ban
+  become: true
+  apt:
+    name: fail2ban
+    state: latest
+
+- name: base install tree
+  become: true
+  apt:
+    name: tree
+    state: latest
+
+- name: base install fish
+  become: true
+  apt:
+    name: fish
+    state: latest

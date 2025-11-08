@@ -1,0 +1,17 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for k3s
+- name: Download and install K3s
+  shell: |
+    curl -sfL https://get.k3s.io | sh -
+  args:
+    creates: /usr/local/bin/k3s
+
+- name: Verify K3s installation
+  command: k3s --version
+  register: k3s_version
+  changed_when: false
+
+- name: Display K3s version
+  debug:
+    msg: "Installed K3s version: {{ k3s_version.stdout }}"

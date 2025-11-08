@@ -1,0 +1,25 @@
+---
+- name: Backup Running Config from Network Devices
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Show running config
+      ios_command:
+        commands:
+          - show running-config
+      register: config_output
+
+    - name: Ensure logs directory exists
+      delegate_to: localhost
+      run_once: true
+      file:
+        path: ../logs
+        state: directory
+
+    - name: Save config to file
+      delegate_to: localhost
+      run_once: true
+      copy:
+        content: "{{ config_output.stdout[0] }}"
+        dest: "../logs/{{ inventory_hostname }}_config_{{ lookup('pipe', 'date +%Y%m%d') }}.txt"

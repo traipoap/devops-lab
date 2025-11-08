@@ -1,0 +1,15 @@
+---
+- name: Check for Errors or Issues on Devices
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Show logging / errors
+      ios_command:
+        commands:
+          - show logging 
+
+    - name: Show interface description
+      ios_command:
+        commands:
+          - show interfaces description
