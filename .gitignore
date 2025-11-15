@@ -118,3 +118,5 @@ coverage/
 !README.md
 
 # End of file
+terraform-provider-proxmox/terraform.exe
+terraform-provider-proxmox/.terraform.lock.hcl
