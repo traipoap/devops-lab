@@ -1,0 +1,180 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: app
+  name: app
+  namespace: elastic-stack
+spec:
+  initContainers:
+  - name: sidecar
+    image: kodekloud/filebeat-configured
+    restartPolicy: Always
+    volumeMounts:
+      - name: log-volume
+        mountPath: /var/log/event-simulator
+
+  containers:
+  - image: kodekloud/event-simulator
+    name: app
+    resources: {}
+    volumeMounts:
+    - mountPath: /log
+      name: log-volume
+
+  volumes:
+  - hostPath:
+      path: /var/log/webapp
+      type: DirectoryOrCreate
+    name: log-volume
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: elastic-search
+  namespace: elastic-stack
+  labels:
+    name: elastic-search
+spec:
+  containers:
+  - name: elastic-search
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.4.2
+    ports:
+    - containerPort: 9200
+    - containerPort: 9300
+    env:
+    - name: discovery.type
+      value: single-node
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: elastic-stack
+spec:
+  selector:
+    name: elastic-search
+  type: NodePort
+  ports:
+  - port: 9200
+    targetPort: 9200
+    nodePort: 30200
+    name: port1
+
+  - port: 9300
+    targetPort: 9300
+    nodePort: 30300
+    name: port2
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+data:
+  td-agent.conf: |
+    <match td.*.*>
+      @type tdlog
+      apikey YOUR_API_KEY
+
+      auto_create_table
+      buffer_type file
+      buffer_path /var/log/td-agent/buffer/td
+
+      <secondary>
+        @type file
+        path /var/log/td-agent/failed_records
+      </secondary>
+    </match>
+
+    <match debug.**>
+      @type stdout
+    </match>
+
+    <match log.*.*>
+      @type stdout
+    </match>
+
+    <source>
+      @type forward
+    </source>
+
+    <source>
+      @type http
+      port 8888
+    </source>
+
+    <source>
+      @type debug_agent
+      bind 127.0.0.1
+      port 24230
+    </source>
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fluent-ui-service
+spec:
+  selector:
+    name: fluent-ui
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30081
+    name: ui
+  - port: 24224
+    targetPort: 24224
+    nodePort: 30224
+    name: receiver
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fluent-ui
+  labels:
+    name: fluent-ui
+spec:
+  containers:
+  - name: fluent-ui
+    image: kodekloud/fluent-ui-running
+    ports:
+    - containerPort: 80
+    - containerPort: 24224
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kibana
+  namespace: elastic-stack
+  labels:
+    name: kibana
+spec:
+  containers:
+  - name: kibana
+    image: kibana:6.4.2
+    ports:
+    - containerPort: 5601
+    env:
+    - name: ELASTICSEARCH_URL
+      value: http://elasticsearch:9200
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: elastic-stack
+spec:
+  selector:
+    name: kibana
+  type: NodePort
+  ports:
+  - port: 5601
+    targetPort: 5601
+    nodePort: 30601
