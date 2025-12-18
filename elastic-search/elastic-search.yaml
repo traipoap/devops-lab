@@ -30,22 +30,71 @@ spec:
 
 ---
 apiVersion: v1
-kind: Pod
+kind: Secret
 metadata:
-  name: elastic-search
+  name: elastic-credentials
+  namespace: elastic-stack
+type: Opaque
+stringData:
+  ELASTIC_PASSWORD: 'changeme'
+  KIBANA_SYSTEM_PASSWORD: 'changeme'
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-pvc
+  namespace: elastic-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
   namespace: elastic-stack
   labels:
     name: elastic-search
 spec:
-  containers:
-  - name: elastic-search
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.4.2
-    ports:
-    - containerPort: 9200
-    - containerPort: 9300
-    env:
-    - name: discovery.type
-      value: single-node
+  replicas: 1
+  selector:
+    matchLabels:
+      name: elastic-search
+  template:
+    metadata:
+      labels:
+        name: elastic-search
+    spec:
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:9.2.2
+        ports:
+        - containerPort: 9200
+        - containerPort: 9300
+        env:
+        - name: discovery.type
+          value: single-node
+        - name: ELASTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elastic-credentials
+              key: ELASTIC_PASSWORD
+        - name: xpack.security.enabled
+          value: "false"
+        - name: xpack.monitoring.collection.enabled
+          value: "false"
+        volumeMounts:
+        - name: elasticsearch-data
+          mountPath: /usr/share/elasticsearch/data
+      volumes:
+      - name: elasticsearch-data
+        persistentVolumeClaim:
+          claimName: elasticsearch-pvc
 
 ---
 apiVersion: v1
@@ -147,23 +196,33 @@ spec:
     - containerPort: 24224
 
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: kibana
   namespace: elastic-stack
   labels:
     name: kibana
 spec:
-  containers:
-  - name: kibana
-    image: kibana:6.4.2
-    ports:
-    - containerPort: 5601
-    env:
-    - name: ELASTICSEARCH_URL
-      value: http://elasticsearch:9200
-
+  replicas: 1
+  selector:
+    matchLabels:
+      name: kibana
+  template:
+    metadata:
+      labels:
+        name: kibana
+    spec:
+      containers:
+      - name: kibana
+        image: kibana:9.2.2
+        ports:
+        - containerPort: 5601
+        env:
+        - name: ELASTICSEARCH_HOSTS
+          value: http://elasticsearch:9200
+        - name: XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY
+          value: "a_very_long_and_secret_encryption_key"
 ---
 apiVersion: v1
 kind: Service
