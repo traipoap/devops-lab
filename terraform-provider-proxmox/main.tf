@@ -64,7 +64,7 @@ resource "proxmox_vm_qemu" "k3s-master" {
     slot    = "scsi0"
     size    = "32G"
     type    = "disk"
-    storage = "local-lvm"
+    storage = "st500"
   }
 
   network {
@@ -103,7 +103,7 @@ resource "proxmox_vm_qemu" "k3s-worker" {
     slot    = "scsi0"
     size    = "40G" # เพิ่มพื้นที่ disk สำหรับเก็บ Docker Images/Logs
     type    = "disk"
-    storage = "local-lvm"
+    storage = "st500"
   }
 
   network {
