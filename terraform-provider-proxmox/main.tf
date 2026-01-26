@@ -35,40 +35,80 @@ provider "proxmox" {
   pm_tls_insecure = true
   pm_debug = true
 }
-resource "proxmox_vm_qemu" "terraform-vm" {
-  force_create= true
-  vmid        = 105
-  name        = "terraform-vm"
+# --- Master Node ---
+resource "proxmox_vm_qemu" "k3s-master" {
+  count       = 1
+  name        = "k3s-master"
   target_node = "local"
-  
+  vmid        = 201 # ปรับเลข ID ตามต้องการ
+
   clone       = "ubuntu-24.04.2"
   full_clone  = false
   os_type     = "cloud-init"
-  
-  cores       = 1
-  agent       = 0
-  memory      = 1024
+
+  cores       = 2
+  sockets     = 1
+  memory      = 4096
+  agent       = 1 # แนะนำให้เป็น 1 และติดตั้ง qemu-guest-agent ใน template
   scsihw      = "virtio-scsi-single"
   boot        = "order=scsi0"
 
-  # Cloud-Init configuration
-  nameserver = "1.1.1.1 8.8.8.8"
-  ipconfig0  = "ip=192.168.1.10/24,gw=192.168.1.1"
-  ciuser     = "traipoap"
-  cipassword = "32110"
-  sshkeys    = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE/Pjg7YXZ8Yau9heCc4YWxFlzhThnI+IhUx2hLJRxYE Cloud-Init@Terraform"
+  # Cloud-Init
+  nameserver  = "1.1.1.1 8.8.8.8"
+  ipconfig0   = "ip=192.168.1.101/24,gw=192.168.1.1" # ปรับ IP ให้ตรงวงแลน
+  ciuser      = "traipoap"
+  cipassword  = "32110"
+  sshkeys     = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE/Pjg7YXZ8Yau9heCc4YWxFlzhThnI+IhUx2hLJRxYE Cloud-Init@Terraform"
 
   disk {
     slot    = "scsi0"
     size    = "32G"
     type    = "disk"
-    storage = "st500"
-    discard = false
+    storage = "local-lvm"
   }
 
   network {
-    id = 0
+    id     = 0
     bridge = "vmbr0"
-    model  = "e1000"
+    model  = "virtio" # แนะนำ virtio แทน e1000 เพื่อความเร็ว
+  }
+}
+
+# --- Worker Node ---
+resource "proxmox_vm_qemu" "k3s-worker" {
+  count       = 1
+  name        = "k3s-worker-01"
+  target_node = "local"
+  vmid        = 202
+
+  clone       = "ubuntu-24.04.2"
+  full_clone  = false
+  os_type     = "cloud-init"
+
+  cores       = 2
+  sockets     = 1
+  memory      = 8192 # ให้ RAM เยอะกว่าเพราะเป็นคนรัน App
+  agent       = 1
+  scsihw      = "virtio-scsi-single"
+  boot        = "order=scsi0"
+
+  # Cloud-Init
+  nameserver  = "1.1.1.1 8.8.8.8"
+  ipconfig0   = "ip=192.168.1.102/24,gw=192.168.1.1"
+  ciuser      = "traipoap"
+  cipassword  = "32110"
+  sshkeys     = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE/Pjg7YXZ8Yau9heCc4YWxFlzhThnI+IhUx2hLJRxYE Cloud-Init@Terraform"
+
+  disk {
+    slot    = "scsi0"
+    size    = "40G" # เพิ่มพื้นที่ disk สำหรับเก็บ Docker Images/Logs
+    type    = "disk"
+    storage = "local-lvm"
+  }
+
+  network {
+    id     = 0
+    bridge = "vmbr0"
+    model  = "virtio"
   }
 }
