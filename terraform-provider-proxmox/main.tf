@@ -40,25 +40,25 @@ resource "proxmox_vm_qemu" "k3s-master" {
   count       = 1
   name        = "k3s-master"
   target_node = "local"
-  vmid        = 201 # ปรับเลข ID ตามต้องการ
-
-  clone       = "ubuntu-24.04.2"
+  vmid        = 201
+  clone       = "ubuntu-24-template"
   full_clone  = false
-  os_type     = "cloud-init"
 
-  cores       = 2
-  sockets     = 1
-  memory      = 4096
-  agent       = 1 # แนะนำให้เป็น 1 และติดตั้ง qemu-guest-agent ใน template
-  scsihw      = "virtio-scsi-single"
-  boot        = "order=scsi0"
+  # ใช้สเปคมาตรฐาน
+  cores   = 2
+  memory  = 4096
+  scsihw  = "virtio-scsi-pci" # เปลี่ยนจาก virtio-scsi-single มาเป็นตัวนี้ชั่วคราว
 
-  # Cloud-Init
-  nameserver  = "1.1.1.1 8.8.8.8"
-  ipconfig0   = "ip=192.168.1.101/24,gw=192.168.1.1" # ปรับ IP ให้ตรงวงแลน
-  ciuser      = "traipoap"
-  cipassword  = "32110"
-  sshkeys     = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE/Pjg7YXZ8Yau9heCc4YWxFlzhThnI+IhUx2hLJRxYE Cloud-Init@Terraform"
+  # ตั้งค่า Boot ให้ชัวร์
+  boot    = "order=scsi0"
+
+  # ปิด Agent ก่อน (เผื่อใน Template ยังไม่ได้ลง จะได้ไม่ค้างรอ Agent)
+  agent   = 0
+
+  # ใช้ VGA มาตรฐานเพื่อให้ดู NoVNC ได้
+  vga {
+    type = "std"
+  }
 
   disk {
     slot    = "scsi0"
@@ -70,34 +70,41 @@ resource "proxmox_vm_qemu" "k3s-master" {
   network {
     id     = 0
     bridge = "vmbr0"
-    model  = "virtio" # แนะนำ virtio แทน e1000 เพื่อความเร็ว
+    model  = "virtio"
   }
+
+  # ใส่ Cloud-init พื้นฐาน
+  os_type     = "cloud-init"
+  nameserver  = "8.8.8.8 1.1.1.1"
+  ipconfig0   = "ip=192.168.1.102/24,gw=192.168.1.1"
+  ciuser      = "admin"
+  cipassword  = "admin"
 }
 
 # --- Worker Node ---
 resource "proxmox_vm_qemu" "k3s-worker" {
-  count       = 1
+  count       = 0
   name        = "k3s-worker-01"
   target_node = "local"
   vmid        = 202
-
-  clone       = "ubuntu-24.04.2"
+  clone       = "ubuntu-24-template"
   full_clone  = false
-  os_type     = "cloud-init"
 
-  cores       = 2
-  sockets     = 1
-  memory      = 8192 # ให้ RAM เยอะกว่าเพราะเป็นคนรัน App
-  agent       = 1
-  scsihw      = "virtio-scsi-single"
-  boot        = "order=scsi0"
+  # ใช้สเปคมาตรฐาน
+  cores   = 2
+  memory  = 4096
+  scsihw  = "virtio-scsi-pci" # เปลี่ยนจาก virtio-scsi-single มาเป็นตัวนี้ชั่วคราว
 
-  # Cloud-Init
-  nameserver  = "1.1.1.1 8.8.8.8"
-  ipconfig0   = "ip=192.168.1.102/24,gw=192.168.1.1"
-  ciuser      = "traipoap"
-  cipassword  = "32110"
-  sshkeys     = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE/Pjg7YXZ8Yau9heCc4YWxFlzhThnI+IhUx2hLJRxYE Cloud-Init@Terraform"
+  # ตั้งค่า Boot ให้ชัวร์
+  boot    = "order=scsi0"
+
+  # ปิด Agent ก่อน (เผื่อใน Template ยังไม่ได้ลง จะได้ไม่ค้างรอ Agent)
+  agent   = 0
+
+  # ใช้ VGA มาตรฐานเพื่อให้ดู NoVNC ได้
+  vga {
+    type = "std"
+  }
 
   disk {
     slot    = "scsi0"
@@ -111,4 +118,11 @@ resource "proxmox_vm_qemu" "k3s-worker" {
     bridge = "vmbr0"
     model  = "virtio"
   }
+
+  # Cloud-Init
+  os_type     = "cloud-init"
+  nameserver  = "8.8.8.8 1.1.1.1"
+  ipconfig0   = "ip=192.168.1.102/24,gw=192.168.1.1"
+  ciuser      = "admin"
+  cipassword  = "admin"
 }
