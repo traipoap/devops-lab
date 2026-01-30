@@ -41,12 +41,12 @@ resource "proxmox_vm_qemu" "k3s-master" {
   name        = "k3s-master"
   target_node = "local"
   vmid        = 201
-  clone       = "ubuntu-24-template"
+  clone       = "alpine-3.23.3-template"
   full_clone  = false
 
   # ใช้สเปคมาตรฐาน
-  cores   = 2
-  memory  = 4096
+  cores   = 1
+  memory  = 1024
   scsihw  = "virtio-scsi-pci" # เปลี่ยนจาก virtio-scsi-single มาเป็นตัวนี้ชั่วคราว
 
   # ตั้งค่า Boot ให้ชัวร์
@@ -54,11 +54,6 @@ resource "proxmox_vm_qemu" "k3s-master" {
 
   # ปิด Agent ก่อน (เผื่อใน Template ยังไม่ได้ลง จะได้ไม่ค้างรอ Agent)
   agent   = 0
-
-  # ใช้ VGA มาตรฐานเพื่อให้ดู NoVNC ได้
-  vga {
-    type = "std"
-  }
 
   disk {
     slot    = "scsi0"
@@ -76,23 +71,23 @@ resource "proxmox_vm_qemu" "k3s-master" {
   # ใส่ Cloud-init พื้นฐาน
   os_type     = "cloud-init"
   nameserver  = "8.8.8.8 1.1.1.1"
-  ipconfig0   = "ip=192.168.1.102/24,gw=192.168.1.1"
+  ipconfig0   = "ip=192.168.1.12/24,gw=192.168.1.1"
   ciuser      = "admin"
   cipassword  = "admin"
 }
 
 # --- Worker Node ---
 resource "proxmox_vm_qemu" "k3s-worker" {
-  count       = 0
+  count       = 1
   name        = "k3s-worker-01"
   target_node = "local"
   vmid        = 202
-  clone       = "ubuntu-24-template"
+  clone       = "alpine-3.23.3-template"
   full_clone  = false
 
   # ใช้สเปคมาตรฐาน
-  cores   = 2
-  memory  = 4096
+  cores   = 1
+  memory  = 1024
   scsihw  = "virtio-scsi-pci" # เปลี่ยนจาก virtio-scsi-single มาเป็นตัวนี้ชั่วคราว
 
   # ตั้งค่า Boot ให้ชัวร์
@@ -100,11 +95,6 @@ resource "proxmox_vm_qemu" "k3s-worker" {
 
   # ปิด Agent ก่อน (เผื่อใน Template ยังไม่ได้ลง จะได้ไม่ค้างรอ Agent)
   agent   = 0
-
-  # ใช้ VGA มาตรฐานเพื่อให้ดู NoVNC ได้
-  vga {
-    type = "std"
-  }
 
   disk {
     slot    = "scsi0"
@@ -122,7 +112,7 @@ resource "proxmox_vm_qemu" "k3s-worker" {
   # Cloud-Init
   os_type     = "cloud-init"
   nameserver  = "8.8.8.8 1.1.1.1"
-  ipconfig0   = "ip=192.168.1.102/24,gw=192.168.1.1"
+  ipconfig0   = "ip=192.168.1.22/24,gw=192.168.1.1"
   ciuser      = "admin"
   cipassword  = "admin"
 }
