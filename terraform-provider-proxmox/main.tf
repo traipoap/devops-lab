@@ -3,7 +3,7 @@ terraform {
 
   required_providers {
     proxmox = {
-      source = "Telmate/proxmox"
+      source  = "Telmate/proxmox"
       version = "3.0.2-rc07"
     }
   }
@@ -20,20 +20,20 @@ variable "proxmox_api_url" {
   type = string
 }
 variable "proxmox_api_token_id" {
-  type = string
+  type      = string
   sensitive = true
 }
 variable "proxmox_api_token_secret" {
-  type = string
+  type      = string
   sensitive = true
 }
 provider "proxmox" {
-  pm_api_url = var.proxmox_api_url
-  pm_api_token_id = var.proxmox_api_token_id
+  pm_api_url          = var.proxmox_api_url
+  pm_api_token_id     = var.proxmox_api_token_id
   pm_api_token_secret = var.proxmox_api_token_secret
 
   pm_tls_insecure = true
-  pm_debug = true
+  pm_debug        = true
 }
 # --- Master Node ---
 resource "proxmox_vm_qemu" "k3s-master" {
@@ -41,25 +41,46 @@ resource "proxmox_vm_qemu" "k3s-master" {
   name        = "k3s-master"
   target_node = "local"
   vmid        = 201
-  clone       = "alpine-3.23.3-template"
+  clone       = "debian12-cloudinit"
   full_clone  = false
 
   # ใช้สเปคมาตรฐาน
-  cores   = 1
-  memory  = 1024
-  scsihw  = "virtio-scsi-pci" # เปลี่ยนจาก virtio-scsi-single มาเป็นตัวนี้ชั่วคราว
+  cpu {
+    cores   = 2
+    sockets = 1
+  }
 
-  # ตั้งค่า Boot ให้ชัวร์
-  boot    = "order=scsi0"
+  memory = 4096
+  scsihw = "virtio-scsi-single"
+  boot   = "order=scsi0"
 
   # ปิด Agent ก่อน (เผื่อใน Template ยังไม่ได้ลง จะได้ไม่ค้างรอ Agent)
-  agent   = 0
+  agent = 1
 
-  disk {
-    slot    = "scsi0"
-    size    = "32G"
-    type    = "disk"
-    storage = "st500"
+  serial {
+    id   = 0
+    type = "socket"
+  }
+
+  disks {
+    scsi {
+      scsi0 {
+        # We have to specify the disk from our template, else Terraform will think it's not supposed to be there
+        disk {
+          storage = "st500"
+          # The size of the disk should be at least as big as the disk in the template. If it's smaller, the disk will be recreated
+          size = "40G"
+        }
+      }
+    }
+    ide {
+      # Some images require a cloud-init disk on the IDE controller, others on the SCSI or SATA controller
+      ide0 {
+        cloudinit {
+          storage = "st500"
+        }
+      }
+    }
   }
 
   network {
@@ -68,12 +89,16 @@ resource "proxmox_vm_qemu" "k3s-master" {
     model  = "virtio"
   }
 
-  # ใส่ Cloud-init พื้นฐาน
-  os_type     = "cloud-init"
-  nameserver  = "8.8.8.8 1.1.1.1"
-  ipconfig0   = "ip=192.168.1.12/24,gw=192.168.1.1"
-  ciuser      = "admin"
-  cipassword  = "admin"
+  # Cloud-Init configuration
+  os_type    = "cloud-init"
+  cicustom   = "vendor=local:snippets/master.yaml" # /var/lib/vz/snippets
+  ciupgrade  = true
+  nameserver = "1.1.1.1 8.8.8.8"
+  ipconfig0  = "ip=192.168.1.12/24,gw=192.168.1.1,ip6=dhcp"
+  skip_ipv6  = true
+  ciuser     = "root"
+  cipassword = "Enter123!"
+  sshkeys    = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMp/LI+g4xuUMSFGXdotnUgZvuMtzjL7PDQDFrCW3W27 root@traipoap-desktop"
 }
 
 # --- Worker Node ---
@@ -82,25 +107,46 @@ resource "proxmox_vm_qemu" "k3s-worker" {
   name        = "k3s-worker-01"
   target_node = "local"
   vmid        = 202
-  clone       = "alpine-3.23.3-template"
+  clone       = "debian12-cloudinit"
   full_clone  = false
 
   # ใช้สเปคมาตรฐาน
-  cores   = 1
-  memory  = 1024
-  scsihw  = "virtio-scsi-pci" # เปลี่ยนจาก virtio-scsi-single มาเป็นตัวนี้ชั่วคราว
+  cpu {
+    cores   = 2
+    sockets = 1
+  }
 
-  # ตั้งค่า Boot ให้ชัวร์
-  boot    = "order=scsi0"
+  memory = 8192
+  scsihw = "virtio-scsi-single"
+  boot   = "order=scsi0"
 
   # ปิด Agent ก่อน (เผื่อใน Template ยังไม่ได้ลง จะได้ไม่ค้างรอ Agent)
-  agent   = 0
+  agent = 1
 
-  disk {
-    slot    = "scsi0"
-    size    = "40G" # เพิ่มพื้นที่ disk สำหรับเก็บ Docker Images/Logs
-    type    = "disk"
-    storage = "st500"
+  serial {
+    id   = 0
+    type = "socket"
+  }
+
+  disks {
+    scsi {
+      scsi0 {
+        # We have to specify the disk from our template, else Terraform will think it's not supposed to be there
+        disk {
+          storage = "st500"
+          # The size of the disk should be at least as big as the disk in the template. If it's smaller, the disk will be recreated
+          size = "40G"
+        }
+      }
+    }
+    ide {
+      # Some images require a cloud-init disk on the IDE controller, others on the SCSI or SATA controller
+      ide0 {
+        cloudinit {
+          storage = "st500"
+        }
+      }
+    }
   }
 
   network {
@@ -109,10 +155,14 @@ resource "proxmox_vm_qemu" "k3s-worker" {
     model  = "virtio"
   }
 
-  # Cloud-Init
-  os_type     = "cloud-init"
-  nameserver  = "8.8.8.8 1.1.1.1"
-  ipconfig0   = "ip=192.168.1.22/24,gw=192.168.1.1"
-  ciuser      = "admin"
-  cipassword  = "admin"
+  # Cloud-Init configuration
+  os_type    = "cloud-init"
+  cicustom   = "vendor=local:snippets/worker.yaml" # /var/lib/vz/snippets
+  ciupgrade  = true
+  nameserver = "1.1.1.1 8.8.8.8"
+  ipconfig0  = "ip=192.168.1.22/24,gw=192.168.1.1,ip6=dhcp"
+  skip_ipv6  = true
+  ciuser     = "root"
+  cipassword = "Enter123!"
+  sshkeys    = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMp/LI+g4xuUMSFGXdotnUgZvuMtzjL7PDQDFrCW3W27 root@traipoap-desktop"
 }
