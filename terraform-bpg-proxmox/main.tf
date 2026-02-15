@@ -1,69 +1,94 @@
 data "local_file" "ssh_public_key" {
-  filename = "./id_rsa.pub"
+  filename = "./id_ed25519.pub"
 }
 
-# สร้างไฟล์ Cloud-init แยกออกมาเพื่อให้จัดการง่าย
-resource "proxmox_virtual_environment_file" "k8s_master_cloud_config" {
+# 1. สร้างไฟล์ Cloud-config ไปเก็บไว้ที่ Proxmox Node (Storage: local)
+resource "proxmox_virtual_environment_file" "user_data_cloud_config" {
   content_type = "snippets"
-  datastore_id = "st500" # หรือที่ที่เก็บ snippets ของคุณ
+  datastore_id = "local"
   node_name    = "local"
 
   source_raw {
-    data = <<-EOF
+    data      = <<-EOF
     #cloud-config
+    hostname: k3s-master
+    timezone: Asia/Bangkok
+    users:
+      - default
+      - name: traipoap
+        groups:
+          - sudo
+        shell: /bin/bash
+        ssh_authorized_keys:
+          - ${trimspace(data.local_file.ssh_public_key.content)}
+        sudo: ALL=(ALL) NOPASSWD:ALL
     package_update: true
     packages:
       - qemu-guest-agent
-      - btop
-      - fish
-      - apt-transport-https
-      - ca-certificates
+      - net-tools
       - curl
-      - gnupg
-
+      - fish
+      - btop
+      - gpg
+      - apt-transport-https
     runcmd:
-      - systemctl enable --now qemu-guest-agent
-      - swapoff -a
-      - sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
-      - modprobe overlay
-      - modprobe br_netfilter
-      - printf "overlay\nbr_netfilter\n" > /etc/modules-load.d/k8s.conf
-      - printf "net.bridge.bridge-nf-call-iptables  = 1\nnet.bridge.bridge-nf-call-ip6tables = 1\nnet.ipv4.ip_forward                 = 1\n" > /etc/sysctl.d/k8s.conf
-      - sysctl --system
-      - apt update && apt install -y containerd
-      - mkdir -p /etc/containerd
-      - containerd config default > /etc/containerd/config.toml
-      - sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
-      - systemctl restart containerd
-      - curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-      - echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' > /etc/apt/sources.list.d/kubernetes.list
-      - apt update && apt install -y kubelet kubeadm kubectl
-      - apt-mark hold kubelet kubeadm kubectl
-      - |
-        kubeadm init --pod-network-cidr=10.244.0.0/16 \
-        --apiserver-advertise-address=192.168.1.12 \
-        --token=abcdef.0123456789abcdef \
-        --node-name k8s-master
-      - mkdir -p /root/.kube
-      - cp -i /etc/kubernetes/admin.conf /root/.kube/config
-    EOF
+      - systemctl enable qemu-guest-agent
+      - systemctl start qemu-guest-agent
+      - echo "done" > /tmp/cloud-config.done
 
-    file_name = "k8s-master.yaml"
+      # --- ติดตั้ง K3s (ตัวอย่างของ Master) ---
+      - curl -sfL https://get.k3s.io | sh -s - server \
+              --node-ip=192.168.1.12 \
+              --write-kubeconfig-mode 644 \
+              --token=K10a82cb374b7a65b02e1695989a67bb8d36c301fb2b233737300329821f29d7f76::server:28e1756edd4e25302a8cc9f4191df9c4
+
+      - curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+      - echo "deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+      - apt-get update
+      - apt-get install helm
+
+    EOF
+    file_name = "k3s-master.yaml"
   }
 }
 
-resource "proxmox_virtual_environment_vm" "k8s_master" {
-  name      = "k8s-master"
+# 2. สร้าง VM โดยเรียกใช้ไฟล์ด้านบน
+resource "proxmox_virtual_environment_vm" "k3s_master" {
+  name      = "k3s-master"
   node_name = "local"
   vm_id     = 201
 
   clone {
-    vm_id = 1000 # ID ของ Ubuntu Template
+    vm_id = 9000
+    full  = false
   }
 
-  initialization {
+  agent {
+    enabled = true
+  }
+
+  cpu {
+    cores = 4
+  }
+
+  memory {
+    dedicated = 8192
+  }
+
+  disk {
     datastore_id = "st500"
-    user_data_file_id = proxmox_virtual_environment_file.k8s_master_cloud_config.id
+    interface    = "scsi0"
+    size         = 32
+  }
+
+  network_device {
+    bridge = "vmbr0"
+  }
+
+  serial_device {}
+
+  initialization {
+    user_data_file_id = proxmox_virtual_environment_file.user_data_cloud_config.id
 
     ip_config {
       ipv4 {
@@ -71,14 +96,9 @@ resource "proxmox_virtual_environment_vm" "k8s_master" {
         gateway = "192.168.1.1"
       }
     }
-
-    user_account {
-      username = "root"
-      keys     = [trimspace(data.local_file.ssh_public_key.content)]
+    dns {
+      servers = ["8.8.8.8", "8.8.4.4"]
+      domain  = "."
     }
-  }
-
-  network_device {
-    bridge = "vmbr0"
   }
 }
