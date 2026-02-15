@@ -1,12 +1,12 @@
 provider "proxmox" {
   endpoint = "https://proxmox.codezap.win"
-  username = "root@pam!terraform"
-  password = "beb0ec21-d6c6-49a6-a53d-b7afaf39a797"
+  username = "root@pam"
+  password = "t,xZzEe{l'xE,s12S@J'Tf]^(3%+Zr#ob+4O+ScHw2gbYesw%_"
   insecure = true
 
   ssh {
-    agent = true
-    username = "root"  # required when using api_token
-    password = "Enter123!"
+    agent    = true
+    username = "root"
+    password = "t,xZzEe{l'xE,s12S@J'Tf]^(3%+Zr#ob+4O+ScHw2gbYesw%_"
   }
 }
