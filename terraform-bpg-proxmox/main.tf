@@ -31,6 +31,7 @@ resource "proxmox_virtual_environment_file" "user_data_cloud_config" {
       - btop
       - gpg
       - apt-transport-https
+      - git
     runcmd:
       - systemctl enable qemu-guest-agent
       - systemctl start qemu-guest-agent
@@ -68,17 +69,18 @@ resource "proxmox_virtual_environment_vm" "k3s_master" {
   }
 
   cpu {
-    cores = 4
+    cores = 2
   }
 
   memory {
-    dedicated = 8192
+    dedicated = 7168
   }
 
   disk {
     datastore_id = "st500"
     interface    = "scsi0"
     size         = 32
+
   }
 
   network_device {
